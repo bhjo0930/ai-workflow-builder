@@ -1,0 +1,32 @@
+/* Custom styles for the workflow builder */
+
+#root {
+  height: 100vh;
+  width: 100vw;
+  margin: 0;
+  padding: 0;
+}
+
+/* Ensure React Flow canvas takes full available space */
+.react-flow {
+  width: 100%;
+  height: 100%;
+}
+
+/* Custom scrollbar for properties panel */
+.properties-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.properties-panel::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.properties-panel::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.properties-panel::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
