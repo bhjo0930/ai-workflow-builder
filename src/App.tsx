@@ -4,6 +4,7 @@ import Canvas from './components/Canvas';
 import PropertiesPanel from './components/PropertiesPanel';
 import WorkflowExecution from './components/WorkflowExecution';
 import WorkflowPersistence from './components/WorkflowPersistence';
+import OpalInterface from './components/OpalInterface';
 import './App.css';
 
 function App() {
@@ -21,6 +22,11 @@ function App() {
 
         {/* Right Sidebar */}
         <div className="w-80 flex-shrink-0 lg:w-80 md:w-72 sm:w-64 flex flex-col">
+          {/* AI Generation Panel */}
+          <div className="flex-shrink-0 border-b border-gray-200">
+            <OpalInterface />
+          </div>
+
           {/* Workflow Persistence Panel */}
           <div className="flex-shrink-0">
             <WorkflowPersistence className="m-2" />

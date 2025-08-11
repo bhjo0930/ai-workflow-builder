@@ -24,6 +24,7 @@ interface WorkflowState {
   removeConnection: (connectionId: string) => void;
   
   setWorkflow: (workflow: Workflow) => void;
+  setGeneratedWorkflow: (nodes: Node[], connections: Connection[]) => void;
   resetWorkflow: () => void;
   
   // Persistence actions
@@ -185,6 +186,20 @@ export const useWorkflowStore = create<WorkflowState>()(
         state.selectedNodeId = null;
         state.hasUnsavedChanges = false;
         state.lastSaved = null;
+      });
+    },
+
+    setGeneratedWorkflow: (nodes: Node[], connections: Connection[]) => {
+      set((state) => {
+        // Replace the current workflow with the AI-generated one.
+        // A more advanced implementation could merge or use auto-layout.
+        state.workflow.nodes = nodes;
+        state.workflow.connections = connections;
+
+        // Reset selection and mark changes
+        state.selectedNodeId = null;
+        state.workflow.metadata.modified = new Date();
+        state.hasUnsavedChanges = true;
       });
     },
 
