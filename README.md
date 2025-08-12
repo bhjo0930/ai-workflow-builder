@@ -2,6 +2,9 @@
 
 A visual workflow builder application built with React, TypeScript, and Vite.
 
+<img width="1421" height="875" alt="스크린샷 2025-08-06 오후 4 16 54" src="https://github.com/user-attachments/assets/20ff9093-d775-4145-9973-e4c48c0d899b" />
+
+
 ## Features
 
 - Visual drag-and-drop workflow creation
