@@ -16,7 +16,6 @@ const UserInputNode: React.FC<UserInputNodeProps> = ({
   node,
   isSelected,
   onExecute,
-  onUpdateConfig,
   onUpdateResult,
   allNodes = [],
   connections = [],

@@ -132,7 +132,7 @@ export function hasCircularDependencies(
   function hasCycle(nodeId: string): boolean {
     if (recursionStack.has(nodeId)) {
       // Found a cycle, capture the path
-      const cycleStart = path.indexOf(nodeId);
+      // const cycleStart = path.indexOf(nodeId);
       return true;
     }
     if (visited.has(nodeId)) {

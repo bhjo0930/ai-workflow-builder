@@ -1,4 +1,4 @@
-import type { Node, Connection, Workflow, WorkflowError } from '../types';
+import type { Node, Workflow, WorkflowError } from '../types';
 import { ExecutionService } from './executionService';
 import { validateWorkflow, getTopologicalOrder } from '../utils/workflowUtils';
 

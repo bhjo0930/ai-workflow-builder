@@ -1,0 +1,70 @@
+{
+  "id": "test-workflow-1",
+  "name": "Test Workflow",
+  "nodes": [
+    {
+      "id": "user-input-1",
+      "type": "userInput",
+      "position": { "x": 100, "y": 100 },
+      "config": {
+        "title": "User Input",
+        "description": "Enter your name",
+        "inputType": "text",
+        "placeholder": "Your name...",
+        "required": true
+      },
+      "status": "idle",
+      "result": null
+    },
+    {
+      "id": "generate-1",
+      "type": "generate",
+      "position": { "x": 400, "y": 100 },
+      "config": {
+        "title": "Generate Greeting",
+        "roleDescription": "Generate a personalized greeting",
+        "promptTemplate": "Create a friendly greeting for {{user-input-1}}",
+        "model": "gpt-3.5-turbo",
+        "temperature": 0.7,
+        "maxTokens": 100
+      },
+      "status": "idle",
+      "result": null
+    },
+    {
+      "id": "output-1",
+      "type": "output",
+      "position": { "x": 700, "y": 100 },
+      "config": {
+        "title": "Final Output",
+        "description": "Display the personalized greeting",
+        "format": "text",
+        "showCopyButton": true,
+        "showDownloadButton": true
+      },
+      "status": "idle",
+      "result": null
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-1",
+      "source": "user-input-1",
+      "target": "generate-1",
+      "sourceHandle": "output",
+      "targetHandle": "input"
+    },
+    {
+      "id": "edge-2",
+      "source": "generate-1",
+      "target": "output-1",
+      "sourceHandle": "output",
+      "targetHandle": "input"
+    }
+  ],
+  "metadata": {
+    "created": "2024-01-01T00:00:00.000Z",
+    "modified": "2024-01-01T00:00:00.000Z",
+    "version": "1.0.0"
+  }
+}

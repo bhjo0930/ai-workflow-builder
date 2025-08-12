@@ -1,6 +1,7 @@
 import React from 'react';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, AlertTriangle } from 'lucide-react';
 import BaseNode from './BaseNode';
+import { useNodeErrorHandling } from '../../hooks/useErrorHandling';
 import type { Node, GenerateNodeConfig, Connection } from '../../types';
 
 interface GenerateNodeProps {
@@ -19,6 +20,11 @@ const GenerateNode: React.FC<GenerateNodeProps> = ({
   connections = [],
 }) => {
   const config = node.config as GenerateNodeConfig;
+  const { nodeErrors, hasErrors } = useNodeErrorHandling(
+    node.id,
+    node.type,
+    node.config.title
+  );
 
   return (
     <BaseNode
@@ -67,12 +73,36 @@ const GenerateNode: React.FC<GenerateNodeProps> = ({
         )}
 
         {/* Error Display */}
-        {node.status === 'error' && (
-          <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded">
-            <div className="text-xs font-semibold text-red-700 mb-1">Error:</div>
-            <div className="text-xs text-red-600">
-              Failed to generate content. Please check your configuration.
-            </div>
+        {(node.status === 'error' || hasErrors) && (
+          <div className="mt-3 space-y-2">
+            {node.status === 'error' && (
+              <div className="p-2 bg-red-50 border border-red-200 rounded">
+                <div className="text-xs font-semibold text-red-700 mb-1">Execution Error:</div>
+                <div className="text-xs text-red-600">
+                  Failed to generate content. Please check your configuration.
+                </div>
+              </div>
+            )}
+            
+            {hasErrors && (
+              <div className="space-y-1">
+                {nodeErrors.slice(0, 2).map((error) => (
+                  <div key={error.id} className="p-2 bg-orange-50 border border-orange-200 rounded">
+                    <div className="flex items-start space-x-1">
+                      <AlertTriangle className="w-3 h-3 text-orange-500 mt-0.5 flex-shrink-0" />
+                      <div className="text-xs text-orange-700 break-words">
+                        {error.message}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {nodeErrors.length > 2 && (
+                  <div className="text-xs text-gray-500 text-center">
+                    +{nodeErrors.length - 2} more error{nodeErrors.length - 2 > 1 ? 's' : ''}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </>

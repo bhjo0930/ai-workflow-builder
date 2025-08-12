@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Play, Square, AlertCircle, CheckCircle, Clock, Zap } from 'lucide-react';
 import { useWorkflowStore } from '../stores/workflowStore';
 import { WorkflowExecutionService, type WorkflowExecutionState } from '../services/workflowExecutionService';
-import type { WorkflowError } from '../types';
+
 
 interface WorkflowExecutionProps {
   className?: string;

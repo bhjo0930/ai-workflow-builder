@@ -1,9 +1,8 @@
 import React from 'react';
 import { Handle, Position, useConnection } from '@xyflow/react';
-import { Play, Square, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { Play, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import type { Node, NodeStatus, Connection } from '../../types';
 import { getConnectedVariables } from '../../utils/workflowUtils';
-import { ExecutionService } from '../../services/executionService';
 import UsedInThisStep from './UsedInThisStep';
 
 interface BaseNodeProps {

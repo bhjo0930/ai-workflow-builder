@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, User, Zap, FileOutput, FolderPlus, Check, Play, Square } from 'lucide-react';
+import { Plus, User, Zap, FileOutput, FolderPlus, Check, Play, Square, Undo, Redo, AlertTriangle, AlertCircle } from 'lucide-react';
 import { useWorkflowStore } from '../stores/workflowStore';
+import { useErrorStore } from '../stores/errorStore';
 import { NODE_TYPES } from '../utils/constants';
 import { generateNodePosition } from '../utils/workflowUtils';
 import { WorkflowExecutionService, type WorkflowExecutionState } from '../services/workflowExecutionService';
@@ -10,7 +11,8 @@ interface ToolbarProps {
 }
 
 const Toolbar: React.FC<ToolbarProps> = ({ className = '' }) => {
-  const { workflow, addNode, updateNode } = useWorkflowStore();
+  const { workflow, addNode, updateNode, undo, redo, canUndo, canRedo } = useWorkflowStore();
+  const { errors, criticalErrors, toggleErrorPanel } = useErrorStore();
   const [recentlyAdded, setRecentlyAdded] = useState<string | null>(null);
   const [executionState, setExecutionState] = useState<WorkflowExecutionState>(
     WorkflowExecutionService.getExecutionState()
@@ -117,6 +119,48 @@ const Toolbar: React.FC<ToolbarProps> = ({ className = '' }) => {
           </div>
           
           <div className="flex items-center space-x-1 sm:space-x-2">
+            {/* Error Indicator */}
+            {errors.length > 0 && (
+              <button
+                onClick={toggleErrorPanel}
+                className={`flex items-center space-x-1 px-3 py-2 rounded-lg transition-colors mr-2 ${
+                  criticalErrors > 0
+                    ? 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-200'
+                    : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200 border border-yellow-200'
+                }`}
+                title={`${errors.length} error${errors.length > 1 ? 's' : ''} detected. Click to view details.`}
+              >
+                {criticalErrors > 0 ? (
+                  <AlertCircle className="w-4 h-4" />
+                ) : (
+                  <AlertTriangle className="w-4 h-4" />
+                )}
+                <span className="text-sm font-medium">
+                  {errors.length}
+                </span>
+              </button>
+            )}
+
+            {/* Undo/Redo Buttons */}
+            <div className="flex items-center space-x-1 mr-2">
+              <button
+                onClick={undo}
+                disabled={!canUndo()}
+                className="flex items-center px-2 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
+                title="Undo (Ctrl+Z / Cmd+Z)"
+              >
+                <Undo className="w-4 h-4" />
+              </button>
+              <button
+                onClick={redo}
+                disabled={!canRedo()}
+                className="flex items-center px-2 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
+                title="Redo (Ctrl+Y / Cmd+Y)"
+              >
+                <Redo className="w-4 h-4" />
+              </button>
+            </div>
+
             {/* Workflow Execution Button */}
             {!executionState.isRunning ? (
               <button

@@ -106,3 +106,6 @@ export interface WorkflowError {
   type: 'validation' | 'execution' | 'connection';
   timestamp: Date;
 }
+
+// Re-export error types
+export * from './errors';

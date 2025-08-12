@@ -1,5 +1,8 @@
-import type { Node, Connection, ExecutionContext, WorkflowError } from '../types';
+import type { Node, Connection, ExecutionContext } from '../types';
 import { getInputNodes, getConnectedVariables } from '../utils/workflowUtils';
+import { errorHandler } from './errorHandlingService';
+import { useErrorStore } from '../stores/errorStore';
+
 
 export interface ExecutionResult {
   success: boolean;
@@ -21,6 +24,27 @@ export class ExecutionService {
   ): Promise<ExecutionResult> {
     const node = nodes.find(n => n.id === nodeId);
     if (!node) {
+      const error = errorHandler.createNodeError(
+        nodeId,
+        'unknown',
+        'Unknown Node',
+        'Node not found in workflow',
+        'high',
+        { nodeId, availableNodes: nodes.map(n => n.id) }
+      );
+      
+      const errorWithRecovery = await errorHandler.handleError(error, [
+        {
+          id: 'refresh-workflow',
+          label: 'Refresh Workflow',
+          description: 'Reload the workflow to fix missing nodes',
+          action: () => window.location.reload(),
+          isPrimary: true,
+        }
+      ]);
+      
+      useErrorStore.getState().addError(errorWithRecovery);
+      
       return {
         success: false,
         error: 'Node not found'
@@ -31,6 +55,26 @@ export class ExecutionService {
       // Validate dependencies
       const validationResult = this.validateNodeExecution(node, nodes, connections);
       if (!validationResult.isValid) {
+        const error = errorHandler.createNodeError(
+          node.id,
+          node.type,
+          node.config.title,
+          validationResult.error || 'Validation failed',
+          'medium',
+          { 
+            validationResult,
+            dependencies: getInputNodes(node.id, nodes, connections).map(n => ({
+              id: n.id,
+              title: n.config.title,
+              status: n.status
+            }))
+          }
+        );
+        
+        const recoveryActions = errorHandler.createRecoveryActions(error);
+        const errorWithRecovery = await errorHandler.handleError(error, recoveryActions);
+        useErrorStore.getState().addError(errorWithRecovery);
+        
         return {
           success: false,
           error: validationResult.error
@@ -43,11 +87,31 @@ export class ExecutionService {
       // Execute based on node type
       const result = await this.executeNodeByType(node, executionContext);
 
+      // Clear any previous errors for this node on successful execution
+      useErrorStore.getState().clearErrorsByNodeId(node.id);
+
       return {
         success: true,
         result
       };
     } catch (error) {
+      const nodeError = errorHandler.createNodeError(
+        node.id,
+        node.type,
+        node.config.title,
+        error instanceof Error ? error.message : 'Unknown execution error',
+        'high',
+        { 
+          originalError: error,
+          executionContext: this.buildExecutionContext(node, nodes, connections),
+          stack: error instanceof Error ? error.stack : undefined
+        }
+      );
+      
+      const recoveryActions = errorHandler.createRecoveryActions(nodeError);
+      const errorWithRecovery = await errorHandler.handleError(nodeError, recoveryActions);
+      useErrorStore.getState().addError(errorWithRecovery);
+      
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown execution error'
@@ -84,7 +148,7 @@ export class ExecutionService {
       
       case 'generate':
         // Generate nodes need at least some input or configuration
-        if (inputNodes.length === 0 && !node.config.promptTemplate) {
+        if (inputNodes.length === 0 && !(node.config as any).promptTemplate) {
           return {
             isValid: false,
             error: 'Generate node needs either connected inputs or a prompt template'
@@ -172,18 +236,98 @@ export class ExecutionService {
    */
   private static async executeUserInputNode(
     node: Node,
-    context: ExecutionContext
+    _context: ExecutionContext
   ): Promise<string> {
     const config = node.config as any;
     
-    // For user input nodes, we need to get the current input value
-    // This should be handled by the UI component, but we can validate here
-    if (config.required && (!node.result || String(node.result).trim() === '')) {
-      throw new Error('Required input is missing');
-    }
+    try {
+      // Validate required input
+      if (config.required && (!node.result || String(node.result).trim() === '')) {
+        const error = errorHandler.createValidationError(
+          'Required input is missing',
+          'userInput',
+          node.result,
+          'required field',
+          'medium',
+          { nodeId: node.id, nodeTitle: node.config.title, required: config.required }
+        );
+        
+        const errorWithRecovery = await errorHandler.handleError(error, [
+          {
+            id: 'focus-input',
+            label: 'Focus Input Field',
+            description: 'Navigate to the input field to enter required data',
+            action: () => {
+              // Emit event to focus the input field
+              window.dispatchEvent(new CustomEvent('focus-node-input', {
+                detail: { nodeId: node.id }
+              }));
+            },
+            isPrimary: true,
+          }
+        ]);
+        
+        useErrorStore.getState().addError(errorWithRecovery);
+        throw new Error('Required input is missing');
+      }
 
-    // Return the current input value or prompt for input
-    return node.result as string || '';
+      // Validate input type if specified
+      const inputValue = String(node.result || '');
+      if (config.inputType === 'email' && inputValue) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(inputValue)) {
+          const error = errorHandler.createValidationError(
+            'Invalid email format',
+            'userInput',
+            inputValue,
+            'email format',
+            'low',
+            { nodeId: node.id, nodeTitle: node.config.title, inputType: config.inputType }
+          );
+          
+          const errorWithRecovery = await errorHandler.handleError(error);
+          useErrorStore.getState().addError(errorWithRecovery);
+          throw new Error('Invalid email format');
+        }
+      }
+
+      if (config.inputType === 'number' && inputValue) {
+        if (isNaN(Number(inputValue))) {
+          const error = errorHandler.createValidationError(
+            'Input must be a valid number',
+            'userInput',
+            inputValue,
+            'numeric value',
+            'low',
+            { nodeId: node.id, nodeTitle: node.config.title, inputType: config.inputType }
+          );
+          
+          const errorWithRecovery = await errorHandler.handleError(error);
+          useErrorStore.getState().addError(errorWithRecovery);
+          throw new Error('Input must be a valid number');
+        }
+      }
+
+      return inputValue;
+    } catch (error) {
+      // Re-throw validation errors, handle unexpected errors
+      if (error instanceof Error && error.message.includes('Required input') || error instanceof Error && error.message.includes('Invalid')) {
+        throw error;
+      }
+      
+      const nodeError = errorHandler.createNodeError(
+        node.id,
+        node.type,
+        node.config.title,
+        `User input processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'medium',
+        { originalError: error, config }
+      );
+      
+      const errorWithRecovery = await errorHandler.handleError(nodeError);
+      useErrorStore.getState().addError(errorWithRecovery);
+      throw error;
+    }
   }
 
   /**
@@ -240,6 +384,28 @@ export class ExecutionService {
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     
     if (!apiKey) {
+      const error = errorHandler.createAPIError(
+        'Gemini API key not found. Please set VITE_GEMINI_API_KEY in your .env file.',
+        'gemini-api',
+        undefined,
+        undefined,
+        'high',
+        { model: config.model, hasApiKey: false }
+      );
+      
+      const errorWithRecovery = await errorHandler.handleError(error, [
+        {
+          id: 'check-env',
+          label: 'Check Environment',
+          description: 'Verify that VITE_GEMINI_API_KEY is set in your .env file',
+          action: () => {
+            alert('Please check your .env file and ensure VITE_GEMINI_API_KEY is set with a valid Gemini API key.');
+          },
+          isPrimary: true,
+        }
+      ]);
+      
+      useErrorStore.getState().addError(errorWithRecovery);
       throw new Error('Gemini API key not found. Please set VITE_GEMINI_API_KEY in your .env file.');
     }
 
@@ -256,12 +422,52 @@ export class ExecutionService {
         : prompt;
 
       const result = await model.generateContent(fullPrompt);
-      const response = await result.response;
+      const response = result.response;
       const text = response.text();
 
       return text;
     } catch (error) {
       console.error('Gemini API Error:', error);
+      
+      // Create specific API error
+      const apiError = errorHandler.createAPIError(
+        `Gemini API call failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'gemini-api',
+        undefined,
+        error,
+        'high',
+        { 
+          model: config.model,
+          promptLength: prompt.length,
+          hasApiKey: true,
+          originalError: error
+        }
+      );
+      
+      const recoveryActions = [
+        {
+          id: 'retry-api',
+          label: 'Retry API Call',
+          description: 'Try calling the Gemini API again',
+          action: async () => {
+            // This will be handled by the retry mechanism
+            await this.callGeminiAPI(prompt, config);
+          },
+          isPrimary: true,
+        },
+        {
+          id: 'check-quota',
+          label: 'Check API Quota',
+          description: 'Verify your Gemini API quota and billing',
+          action: () => {
+            window.open('https://console.cloud.google.com/apis/api/generativelanguage.googleapis.com/quotas', '_blank');
+          },
+        }
+      ];
+      
+      const errorWithRecovery = await errorHandler.handleError(apiError, recoveryActions);
+      useErrorStore.getState().addError(errorWithRecovery);
+      
       throw new Error(`Gemini API call failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -303,7 +509,7 @@ export class ExecutionService {
    */
   private static async executeAddAssetsNode(
     node: Node,
-    context: ExecutionContext
+    _context: ExecutionContext
   ): Promise<string> {
     const config = node.config as any;
     const assets: string[] = [];
